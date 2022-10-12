@@ -1,0 +1,88 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x"]
+}
+
+generator docs {
+  provider = "node node_modules/prisma-docs-generator"
+}
+
+generator dbml {
+  provider = "prisma-dbml-generator"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  role      Role     @default(USER)
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User?
+  token     Token[]
+}
+
+model User {
+  id        String    @id @default(uuid())
+  firstName String
+  lastName  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId String    @unique
+  Content   Content[]
+}
+
+model Token {
+  id          String    @id @default(uuid())
+  token       String    @default("")
+  type        TokenType @default(ACCESS)
+  expires     DateTime  @default(now())
+  blacklisted Boolean   @default(false)
+  account     Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId   String
+}
+
+model Content {
+  id           String         @id @default(uuid())
+  title        String         @default("")
+  description  String         @default("")
+  richContent  String         @default("")
+  videoContent String         @default("")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  tags         TagContent[]
+  createdBy    User?          @relation(fields: [createdById], references: [id])
+  createdById  String?
+}
+
+model TagContent {
+  id           String    @id @default(uuid())
+  content      Content?  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  tag          Tag?      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  contentId    String?
+  tagId        String?
+}
+
+model Tag {
+  id           String      @id @default(uuid())
+  sport        String
+  level        String
+  tagContent   TagContent[]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum TokenType {
+  ACCESS
+  REFRESH
+  RESET_PASSWORD
+}

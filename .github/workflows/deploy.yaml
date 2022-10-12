@@ -1,0 +1,96 @@
+name: Staging
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  test_unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16.14.2]
+
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install Dependencies
+        run: yarn install
+
+      - name: Primas Generate
+        run: |
+          npx prisma generate
+          yarn add @prisma/client@latest
+
+      - name: Run Test
+        run: yarn test:cov
+
+  build-and-deploy:
+    needs: test_unit
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16.14.2]
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install Dependencies
+        run: yarn install
+
+      - name: Primas Generate
+        run: |
+          npx prisma generate
+
+      - name: Run Build
+        run: yarn build
+
+      - name: Zip build folder
+        run: |
+          zip -r deploy.zip .
+
+      - name: Deploy to EB
+        uses: einaregilsson/beanstalk-deploy@v1
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: node
+          environment_name: nodde-staging
+          version_label: ${{ github.sha }}
+          region: us-east-1
+          deployment_package: ./deploy.zip
+          wait_for_environment_recovery: 120
+
+  migration:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16.14.2]
+
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install Dependencies
+        run: yarn install
+
+      - name: Primas Migration Dev
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
+        run: |
+          npx prisma migrate dev

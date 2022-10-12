@@ -1,0 +1,8 @@
+{
+    "src/**/*.ts": [
+        "yarn lint",
+        "yarn format",
+        "jest --bail --findRelatedTests",
+        "git add ."
+    ]
+}

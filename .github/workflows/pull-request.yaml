@@ -1,0 +1,31 @@
+name: Pull Request
+
+on:
+  pull_request:
+    branches:
+      - staging
+jobs:
+  test_unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16.14.2]
+
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install Dependencies
+        run: yarn install
+
+      - name: Primas Generate
+        run: |
+          npx prisma generate
+          yarn add @prisma/client@latest
+
+      - name: Run Test
+        run: yarn test:cov
